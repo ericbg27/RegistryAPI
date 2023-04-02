@@ -1,14 +1,18 @@
 package db
 
 import (
-	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
-// CreateDBManager created the db manager using
-func CreateDBManager(dbPath string) (db *gorm.DB, err error) {
-	db, err = gorm.Open(postgres.Open(dbPath), &gorm.Config{})
+type DBManager struct {
+	db *gorm.DB
+}
+
+// NewDBManager creates the db manager using the provided DB connection
+func NewDBManager(db *gorm.DB) *DBManager {
 	db.AutoMigrate(&User{})
 
-	return
+	return &DBManager{
+		db: db,
+	}
 }

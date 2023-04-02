@@ -3,18 +3,18 @@ package api
 import (
 	"net/http"
 
+	"github.com/ericbg27/RegistryAPI/db"
 	"github.com/ericbg27/RegistryAPI/util"
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 type Server struct {
 	config    util.Config
-	dbManager *gorm.DB
+	dbManager *db.DBManager
 	router    *gin.Engine
 }
 
-func NewServer(dbManager *gorm.DB, config util.Config) (server *Server, err error) {
+func NewServer(dbManager *db.DBManager, config util.Config) (server *Server, err error) {
 	server = &Server{
 		dbManager: dbManager,
 		config:    config,
