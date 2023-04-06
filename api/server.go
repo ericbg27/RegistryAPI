@@ -9,15 +9,15 @@ import (
 )
 
 type Server struct {
-	config    util.Config
-	dbManager *db.DBManager
-	router    *gin.Engine
+	Config      util.Config
+	DbConnector db.DBConnector
+	Router      *gin.Engine
 }
 
-func NewServer(dbManager *db.DBManager, config util.Config) (server *Server, err error) {
+func NewServer(dbConnector db.DBConnector, config util.Config) (server *Server, err error) {
 	server = &Server{
-		dbManager: dbManager,
-		config:    config,
+		DbConnector: dbConnector,
+		Config:      config,
 	}
 
 	server.setupRouter()
@@ -26,9 +26,10 @@ func NewServer(dbManager *db.DBManager, config util.Config) (server *Server, err
 }
 
 func (s *Server) setupRouter() {
-	s.router = gin.Default()
+	s.Router = gin.Default()
 
-	s.router.GET("/", s.healthCheck)
+	s.Router.GET("/", s.healthCheck)
+	s.Router.POST("/users", s.createUser)
 }
 
 func (s *Server) healthCheck(c *gin.Context) {
@@ -37,5 +38,5 @@ func (s *Server) healthCheck(c *gin.Context) {
 
 // Start runs the server listening on the specified port
 func (s *Server) Start() {
-	s.router.Run(s.config.ServerAddress)
+	s.Router.Run(s.Config.ServerAddress)
 }

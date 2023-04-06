@@ -1,8 +1,10 @@
 package db
 
-import (
-	"gorm.io/gorm"
-)
+import "gorm.io/gorm"
+
+type DBConnector interface {
+	CreateUser(userParams CreateUserParams) (*User, error)
+}
 
 type DBManager struct {
 	db *gorm.DB
