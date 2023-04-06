@@ -3,21 +3,21 @@ package api
 import (
 	"net/http"
 
+	"github.com/ericbg27/RegistryAPI/db"
 	"github.com/ericbg27/RegistryAPI/util"
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 type Server struct {
-	config    util.Config
-	dbManager *gorm.DB
-	router    *gin.Engine
+	Config      util.Config
+	DbConnector db.DBConnector
+	Router      *gin.Engine
 }
 
-func NewServer(dbManager *gorm.DB, config util.Config) (server *Server, err error) {
+func NewServer(dbConnector db.DBConnector, config util.Config) (server *Server, err error) {
 	server = &Server{
-		dbManager: dbManager,
-		config:    config,
+		DbConnector: dbConnector,
+		Config:      config,
 	}
 
 	server.setupRouter()
@@ -26,9 +26,10 @@ func NewServer(dbManager *gorm.DB, config util.Config) (server *Server, err erro
 }
 
 func (s *Server) setupRouter() {
-	s.router = gin.Default()
+	s.Router = gin.Default()
 
-	s.router.GET("/", s.healthCheck)
+	s.Router.GET("/", s.healthCheck)
+	s.Router.POST("/users", s.createUser)
 }
 
 func (s *Server) healthCheck(c *gin.Context) {
@@ -37,5 +38,5 @@ func (s *Server) healthCheck(c *gin.Context) {
 
 // Start runs the server listening on the specified port
 func (s *Server) Start() {
-	s.router.Run(s.config.ServerAddress)
+	s.Router.Run(s.Config.ServerAddress)
 }
