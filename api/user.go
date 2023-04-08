@@ -9,7 +9,7 @@ import (
 
 type createUserRequest struct {
 	FullName string `json:"full_name" binding:"required"`
-	Phone    string `json:"phone" binding:"required"` // TODO: Validação de telefone
+	Phone    string `json:"phone" binding:"required"`
 	UserName string `json:"user_name" binding:"required,alphanum,min=6"`
 	Password string `json:"password" binding:"required,min=6"`
 }
@@ -54,4 +54,51 @@ func (s *Server) createUser(c *gin.Context) {
 		"message": "User created successfully",
 	})
 	return
+}
+
+type getUserRequest struct {
+	UserName string `form:"user_name" binding:"required"`
+}
+
+type getUserResponse struct {
+	FullName string `json:"full_name"`
+	Phone    string `json:"phone"`
+	UserName string `json:"user_name"`
+}
+
+func (s *Server) getUser(c *gin.Context) {
+	var userReq getUserRequest
+
+	if err := c.ShouldBindQuery(&userReq); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"name":    "BadRequest",
+			"message": "Incorrect parameters sent in request",
+		})
+		return
+	}
+
+	user, err := s.DbConnector.GetUser(userReq.UserName)
+	if err != nil {
+		notFoundErr, ok := err.(*db.NotFoundError)
+		if ok {
+			c.JSON(http.StatusNotFound, gin.H{
+				"name":    "NotFound",
+				"message": notFoundErr.Error(),
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"name":    "InternalServerError",
+			"message": "Unexpected server error. Try again later",
+		})
+	}
+
+	userRes := &getUserResponse{
+		FullName: user.FullName,
+		Phone:    user.Phone,
+		UserName: user.UserName,
+	}
+
+	c.JSON(http.StatusOK, userRes)
 }

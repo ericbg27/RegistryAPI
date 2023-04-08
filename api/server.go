@@ -28,8 +28,16 @@ func NewServer(dbConnector db.DBConnector, config util.Config) (server *Server, 
 func (s *Server) setupRouter() {
 	s.Router = gin.Default()
 
-	s.Router.GET("/", s.healthCheck)
-	s.Router.POST("/users", s.createUser)
+	v1 := s.Router.Group("/v1")
+	{
+		v1.GET("/", s.healthCheck)
+
+		v1Users := v1.Group("/users")
+		{
+			v1Users.GET("/", s.getUser)
+			v1Users.POST("/", s.createUser)
+		}
+	}
 }
 
 func (s *Server) healthCheck(c *gin.Context) {

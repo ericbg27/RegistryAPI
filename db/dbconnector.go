@@ -4,6 +4,7 @@ import "gorm.io/gorm"
 
 type DBConnector interface {
 	CreateUser(userParams CreateUserParams) (*User, error)
+	GetUser(userName string) (*User, error)
 }
 
 type DBManager struct {

@@ -39,3 +39,20 @@ func (dbms *DBManagerSuite) TestCreateUser() {
 	assert.Equal(dbms.T(), dbms.user.UserName, user.UserName)
 	assert.Equal(dbms.T(), dbms.user.Password, user.Password)
 }
+
+func (dbms *DBManagerSuite) TestGetUser() {
+	userMockRow := sqlmock.NewRows([]string{"id", "full_name", "phone", "user_name", "password"}).AddRow("0", dbms.user.FullName, dbms.user.Phone, dbms.user.UserName, dbms.user.Password)
+
+	dbms.mock.ExpectQuery(
+		regexp.QuoteMeta(`SELECT * FROM "users" WHERE user_name = $1 AND "users"."deleted_at" IS NULL ORDER BY "users"."id" LIMIT 1`),
+	).WithArgs(
+		dbms.user.UserName,
+	).WillReturnRows(userMockRow)
+
+	user, err := dbms.manager.GetUser(dbms.user.UserName)
+	assert.NoError(dbms.T(), err)
+	assert.Equal(dbms.T(), dbms.user.FullName, user.FullName)
+	assert.Equal(dbms.T(), dbms.user.Phone, user.Phone)
+	assert.Equal(dbms.T(), dbms.user.UserName, user.UserName)
+	assert.Equal(dbms.T(), dbms.user.Password, user.Password)
+}
