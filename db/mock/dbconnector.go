@@ -48,3 +48,33 @@ func (mr *MockDBConnectorMockRecorder) CreateUser(userParams interface{}) *gomoc
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateUser", reflect.TypeOf((*MockDBConnector)(nil).CreateUser), userParams)
 }
+
+// GetUser mocks base method.
+func (m *MockDBConnector) GetUser(userName string) (*db.User, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUser", userName)
+	ret0, _ := ret[0].(*db.User)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUser indicates an expected call of GetUser.
+func (mr *MockDBConnectorMockRecorder) GetUser(userName interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUser", reflect.TypeOf((*MockDBConnector)(nil).GetUser), userName)
+}
+
+// GetUsers mocks base method.
+func (m *MockDBConnector) GetUsers(searchParams db.GetUsersParams) ([]db.User, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUsers", searchParams)
+	ret0, _ := ret[0].([]db.User)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUsers indicates an expected call of GetUsers.
+func (mr *MockDBConnectorMockRecorder) GetUsers(searchParams interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsers", reflect.TypeOf((*MockDBConnector)(nil).GetUsers), searchParams)
+}

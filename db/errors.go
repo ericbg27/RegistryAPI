@@ -25,3 +25,11 @@ type BadInputError struct {
 func (b *BadInputError) Error() string {
 	return fmt.Sprintf("%v", b.Err)
 }
+
+type NotFoundError struct {
+	object string
+}
+
+func (n *NotFoundError) Error() string {
+	return fmt.Sprintf("Could not find an %s with the provided parameters", n.object)
+}

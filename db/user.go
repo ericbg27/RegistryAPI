@@ -1,6 +1,7 @@
 package db
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/lib/pq"
@@ -49,4 +50,41 @@ func (dbManager *DBManager) CreateUser(userParams CreateUserParams) (*User, erro
 	}
 
 	return user, nil
+}
+
+func (dbManager *DBManager) GetUser(userName string) (*User, error) {
+	var user User
+
+	result := dbManager.db.Where("user_name = ?", userName).First(&user)
+
+	if err := result.Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, &NotFoundError{
+				object: "user",
+			}
+		}
+
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+type GetUsersParams struct {
+	PageIndex int
+	Offset    int
+}
+
+func (dbManager *DBManager) GetUsers(searchParams GetUsersParams) ([]User, error) {
+	var users []User
+
+	searchOffset := searchParams.PageIndex * searchParams.Offset
+
+	result := dbManager.db.Omit("ID", "LoginToken").Limit(searchParams.Offset).Offset(searchOffset).Find(&users)
+
+	if err := result.Error; err != nil {
+		return nil, err
+	}
+
+	return users, nil
 }
