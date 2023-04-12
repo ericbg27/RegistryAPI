@@ -32,10 +32,15 @@ func (s *Server) setupRouter() {
 	{
 		v1.GET("/", s.healthCheck)
 
+		v1User := v1.Group("/user")
+		{
+			v1User.GET("/", s.getUser)
+			v1User.POST("/", s.createUser)
+		}
+
 		v1Users := v1.Group("/users")
 		{
-			v1Users.GET("/", s.getUser)
-			v1Users.POST("/", s.createUser)
+			v1Users.GET("/", s.getUsers)
 		}
 	}
 }

@@ -1,9 +1,8 @@
-// NOTE: https://aprendagolang.com.br/2022/09/01/como-fazer-teste-unitario-no-gorm-com-testify-e-sqlmock/
-
 package db_test
 
 import (
 	"database/sql"
+	"strconv"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -14,6 +13,8 @@ import (
 	"gorm.io/gorm"
 )
 
+const numUsers = 5
+
 type DBManagerSuite struct {
 	suite.Suite
 	conn *sql.DB
@@ -22,6 +23,7 @@ type DBManagerSuite struct {
 
 	manager *db.DBManager
 	user    *db.User
+	users   []*db.User
 }
 
 func (dbms *DBManagerSuite) SetupSuite() {
@@ -48,6 +50,20 @@ func (dbms *DBManagerSuite) SetupSuite() {
 		Phone:    "99999999",
 		UserName: "test",
 		Password: "secret",
+	}
+
+	for i := 0; i < numUsers; i++ {
+		userFullName := "Test User " + strconv.Itoa(i)
+		userPhone := "9999999" + strconv.Itoa(i)
+		userUserName := "test" + strconv.Itoa(i)
+		userPassword := "secret" + strconv.Itoa(i)
+
+		dbms.users = append(dbms.users, &db.User{
+			FullName: userFullName,
+			Phone:    userPhone,
+			UserName: userUserName,
+			Password: userPassword,
+		})
 	}
 }
 
