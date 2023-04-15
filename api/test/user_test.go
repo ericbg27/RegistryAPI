@@ -12,6 +12,7 @@ import (
 
 	"github.com/ericbg27/RegistryAPI/db"
 	mockdb "github.com/ericbg27/RegistryAPI/db/mock"
+	"github.com/ericbg27/RegistryAPI/token"
 	"github.com/gin-gonic/gin"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
@@ -39,7 +40,7 @@ func TestCreateUser(t *testing.T) {
 				"user_name": user.UserName,
 				"password":  user.Password,
 			},
-			buildStubs: func(dbConnnector *mockdb.MockDBConnector) {
+			buildStubs: func(dbConnector *mockdb.MockDBConnector) {
 				arg := db.CreateUserParams{
 					FullName: user.FullName,
 					Phone:    user.Phone,
@@ -47,7 +48,7 @@ func TestCreateUser(t *testing.T) {
 					Password: user.Password,
 				}
 
-				dbConnnector.
+				dbConnector.
 					EXPECT().
 					CreateUser(gomock.Eq(arg)).
 					Times(1).
@@ -64,10 +65,10 @@ func TestCreateUser(t *testing.T) {
 				require.NoError(t, err)
 
 				message, ok := bodyData["message"]
-				require.Equal(t, ok, true)
+				require.Equal(t, true, ok)
 
 				message, ok = message.(string)
-				require.Equal(t, ok, true)
+				require.Equal(t, true, ok)
 				require.Equal(t, "User created successfully", message)
 			},
 		},
@@ -78,8 +79,8 @@ func TestCreateUser(t *testing.T) {
 				"phone":     user.Phone,
 				"user_name": user.UserName,
 			},
-			buildStubs: func(dbConnnector *mockdb.MockDBConnector) {
-				dbConnnector.
+			buildStubs: func(dbConnector *mockdb.MockDBConnector) {
+				dbConnector.
 					EXPECT().
 					CreateUser(gomock.Any()).
 					Times(0)
@@ -96,7 +97,7 @@ func TestCreateUser(t *testing.T) {
 				"user_name": user.UserName,
 				"password":  user.Password,
 			},
-			buildStubs: func(dbConnnector *mockdb.MockDBConnector) {
+			buildStubs: func(dbConnector *mockdb.MockDBConnector) {
 				arg := db.CreateUserParams{
 					FullName: user.FullName,
 					Phone:    user.Phone,
@@ -104,7 +105,7 @@ func TestCreateUser(t *testing.T) {
 					Password: user.Password,
 				}
 
-				dbConnnector.
+				dbConnector.
 					EXPECT().
 					CreateUser(arg).
 					Times(1).
@@ -124,7 +125,7 @@ func TestCreateUser(t *testing.T) {
 				"user_name": user.UserName,
 				"password":  user.Password,
 			},
-			buildStubs: func(dbConnnector *mockdb.MockDBConnector) {
+			buildStubs: func(dbConnector *mockdb.MockDBConnector) {
 				arg := db.CreateUserParams{
 					FullName: user.FullName,
 					Phone:    user.Phone,
@@ -132,7 +133,7 @@ func TestCreateUser(t *testing.T) {
 					Password: user.Password,
 				}
 
-				dbConnnector.
+				dbConnector.
 					EXPECT().
 					CreateUser(arg).
 					Times(1).
@@ -190,8 +191,8 @@ func TestGetUser(t *testing.T) {
 			body: gin.H{
 				"user_name": user.UserName,
 			},
-			buildStubs: func(dbConnnector *mockdb.MockDBConnector) {
-				dbConnnector.
+			buildStubs: func(dbConnector *mockdb.MockDBConnector) {
+				dbConnector.
 					EXPECT().
 					GetUser(gomock.Eq(user.UserName)).
 					Times(1).
@@ -208,32 +209,32 @@ func TestGetUser(t *testing.T) {
 				require.NoError(t, err)
 
 				fullName, ok := bodyData["full_name"]
-				require.Equal(t, ok, true)
+				require.Equal(t, true, ok)
 
 				fullName, ok = fullName.(string)
-				require.Equal(t, ok, true)
+				require.Equal(t, true, ok)
 				require.Equal(t, user.FullName, fullName)
 
 				phone, ok := bodyData["phone"]
-				require.Equal(t, ok, true)
+				require.Equal(t, true, ok)
 
 				phone, ok = phone.(string)
-				require.Equal(t, ok, true)
+				require.Equal(t, true, ok)
 				require.Equal(t, user.Phone, phone)
 
 				userName, ok := bodyData["user_name"]
-				require.Equal(t, ok, true)
+				require.Equal(t, true, ok)
 
 				userName, ok = userName.(string)
-				require.Equal(t, ok, true)
+				require.Equal(t, true, ok)
 				require.Equal(t, user.UserName, userName)
 			},
 		},
 		{
 			name: "Bad Request",
 			body: gin.H{},
-			buildStubs: func(dbConnnector *mockdb.MockDBConnector) {
-				dbConnnector.
+			buildStubs: func(dbConnector *mockdb.MockDBConnector) {
+				dbConnector.
 					EXPECT().
 					GetUser(gomock.Any()).
 					Times(0)
@@ -303,7 +304,7 @@ func TestGetUsers(t *testing.T) {
 				"page":   0,
 				"offset": 2,
 			},
-			buildStubs: func(dbConnnector *mockdb.MockDBConnector) {
+			buildStubs: func(dbConnector *mockdb.MockDBConnector) {
 				args := db.GetUsersParams{
 					PageIndex: 0,
 					Offset:    2,
@@ -315,7 +316,7 @@ func TestGetUsers(t *testing.T) {
 					maxIndex = len(users) - 1
 				}
 
-				dbConnnector.
+				dbConnector.
 					EXPECT().
 					GetUsers(gomock.Eq(args)).
 					Times(1).
@@ -344,24 +345,24 @@ func TestGetUsers(t *testing.T) {
 					require.Equal(t, true, ok)
 
 					fullName, ok := userRes["full_name"]
-					require.Equal(t, ok, true)
+					require.Equal(t, true, ok)
 
 					fullName, ok = fullName.(string)
-					require.Equal(t, ok, true)
+					require.Equal(t, true, ok)
 					require.Equal(t, users[i].FullName, fullName)
 
 					phone, ok := userRes["phone"]
-					require.Equal(t, ok, true)
+					require.Equal(t, true, ok)
 
 					phone, ok = phone.(string)
-					require.Equal(t, ok, true)
+					require.Equal(t, true, ok)
 					require.Equal(t, users[i].Phone, phone)
 
 					userName, ok := userRes["user_name"]
-					require.Equal(t, ok, true)
+					require.Equal(t, true, ok)
 
 					userName, ok = userName.(string)
-					require.Equal(t, ok, true)
+					require.Equal(t, true, ok)
 					require.Equal(t, users[i].UserName, userName)
 				}
 			},
@@ -397,6 +398,115 @@ func TestGetUsers(t *testing.T) {
 
 			server.Router.ServeHTTP(recorder, request)
 			tc.checkResponse(recorder)
+		})
+	}
+}
+
+func TestLoginUser(t *testing.T) {
+	user := db.User{
+		FullName: "Test User",
+		Phone:    "99989992",
+		UserName: "testuser123",
+		Password: "secret",
+	}
+
+	testCases := []struct {
+		name          string
+		body          gin.H
+		buildStubs    func(dbConnector *mockdb.MockDBConnector)
+		checkResponse func(recorder *httptest.ResponseRecorder, maker token.Maker)
+	}{
+		{
+			name: "OK",
+			body: gin.H{
+				"user_name": user.UserName,
+				"password":  user.Password,
+			},
+			buildStubs: func(dbConnector *mockdb.MockDBConnector) {
+				dbConnector.
+					EXPECT().
+					GetUser(gomock.Eq(user.UserName)).
+					Times(1).
+					Return(&user, nil)
+			},
+			checkResponse: func(recorder *httptest.ResponseRecorder, maker token.Maker) {
+				require.Equal(t, http.StatusOK, recorder.Code)
+
+				data, err := ioutil.ReadAll(recorder.Body)
+				require.NoError(t, err)
+
+				var bodyData map[string]any
+				err = json.Unmarshal(data, &bodyData)
+				require.NoError(t, err)
+
+				tokenValue, ok := bodyData["token"]
+				require.Equal(t, true, ok)
+
+				token, ok := tokenValue.(string)
+				require.Equal(t, true, ok)
+
+				payload, err := maker.VerifyToken(token)
+				require.NoError(t, err)
+
+				require.Equal(t, "testuser123", payload.Username)
+			},
+		},
+		{
+			name: "BadRequest",
+			body: gin.H{
+				"user_name": user.UserName,
+			},
+			buildStubs: func(dbConnector *mockdb.MockDBConnector) {
+				dbConnector.
+					EXPECT().
+					GetUser(gomock.Any).
+					Times(0)
+			},
+			checkResponse: func(recorder *httptest.ResponseRecorder, maker token.Maker) {
+				validateErrorResponse(t, recorder, "BadRequest", "Incorrect parameters sent in request", http.StatusBadRequest)
+			},
+		},
+		{
+			name: "WrongPassword",
+			body: gin.H{
+				"user_name": user.UserName,
+				"password":  "wrongpassword",
+			},
+			buildStubs: func(dbConnector *mockdb.MockDBConnector) {
+				dbConnector.
+					EXPECT().
+					GetUser(gomock.Eq(user.UserName)).
+					Times(1).
+					Return(&user, nil)
+			},
+			checkResponse: func(recorder *httptest.ResponseRecorder, maker token.Maker) {
+				validateErrorResponse(t, recorder, "Unauthorized", "Wrong password sent in request", http.StatusUnauthorized)
+			},
+		},
+	}
+
+	for i := range testCases {
+		tc := testCases[i]
+
+		t.Run(tc.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			dbConnector := mockdb.NewMockDBConnector(ctrl)
+			tc.buildStubs(dbConnector)
+
+			server := NewTestServer(t, dbConnector)
+			recorder := httptest.NewRecorder()
+
+			data, err := json.Marshal(tc.body)
+			require.NoError(t, err)
+
+			url := "/v1/user/login"
+			request, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(data))
+			require.NoError(t, err)
+
+			server.Router.ServeHTTP(recorder, request)
+			tc.checkResponse(recorder, server.Maker)
 		})
 	}
 }

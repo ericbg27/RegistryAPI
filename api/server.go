@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/ericbg27/RegistryAPI/db"
+	"github.com/ericbg27/RegistryAPI/token"
 	"github.com/ericbg27/RegistryAPI/util"
 	"github.com/gin-gonic/gin"
 )
@@ -12,12 +13,19 @@ type Server struct {
 	Config      util.Config
 	DbConnector db.DBConnector
 	Router      *gin.Engine
+	Maker       token.Maker
 }
 
 func NewServer(dbConnector db.DBConnector, config util.Config) (server *Server, err error) {
+	maker, err := token.NewPasetoMaker(config.TokenSymmetricKey)
+	if err != nil {
+		return nil, err
+	}
+
 	server = &Server{
 		DbConnector: dbConnector,
 		Config:      config,
+		Maker:       maker,
 	}
 
 	server.setupRouter()
@@ -36,6 +44,7 @@ func (s *Server) setupRouter() {
 		{
 			v1User.GET("/", s.getUser)
 			v1User.POST("/", s.createUser)
+			v1User.POST("/login", s.loginUser)
 		}
 
 		v1Users := v1.Group("/users")
