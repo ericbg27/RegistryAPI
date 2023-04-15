@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/ericbg27/RegistryAPI/api"
 	"github.com/ericbg27/RegistryAPI/db"
@@ -15,7 +16,10 @@ import (
 )
 
 func NewTestServer(t *testing.T, dbConnector db.DBConnector) *api.Server {
-	config := util.Config{}
+	config := util.Config{
+		AccessTokenDuration: 15 * time.Minute,
+		TokenSymmetricKey:   util.RandomString(32),
+	}
 
 	server, err := api.NewServer(dbConnector, config)
 	require.NoError(t, err)

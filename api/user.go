@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/ericbg27/RegistryAPI/db"
+	"github.com/ericbg27/RegistryAPI/util"
 	"github.com/gin-gonic/gin"
 )
 
@@ -93,6 +94,7 @@ func (s *Server) getUser(c *gin.Context) {
 			"name":    "InternalServerError",
 			"message": "Unexpected server error. Try again later",
 		})
+		return
 	}
 
 	userRes := &getUserResponse{
@@ -149,6 +151,7 @@ func (s *Server) getUsers(c *gin.Context) {
 			"name":    "InternalServerError",
 			"message": "Unexpected server error. Try again later",
 		})
+		return
 	}
 
 	usersRes := &getUsersResponse{
@@ -167,4 +170,66 @@ func (s *Server) getUsers(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, usersRes)
+}
+
+type loginUserRequest struct {
+	UserName string `json:"user_name" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+type loginUserResponse struct {
+	Token string `json:"token"`
+}
+
+func (s *Server) loginUser(c *gin.Context) {
+	var loginReq loginUserRequest
+
+	if err := c.ShouldBindJSON(&loginReq); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"name":    "BadRequest",
+			"message": "Incorrect parameters sent in request",
+		})
+		return
+	}
+
+	user, err := s.DbConnector.GetUser(loginReq.UserName)
+	if err != nil {
+		notFoundErr, ok := err.(*db.NotFoundError)
+		if ok {
+			c.JSON(http.StatusNotFound, gin.H{
+				"name":    "NotFound",
+				"message": notFoundErr.Error(),
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"name":    "InternalServerError",
+			"message": "Unexpected server error. Try again later",
+		})
+		return
+	}
+
+	if !util.ComparePassword(user.Password, loginReq.Password) {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"name":    "Unauthorized",
+			"message": "Wrong password sent in request",
+		})
+		return
+	}
+
+	token, err := s.Maker.CreateToken(user.UserName, s.Config.AccessTokenDuration)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"name":    "InternalServerError",
+			"message": "Unexpected server error. Try again later",
+		})
+		return
+	}
+
+	loginRes := loginUserResponse{
+		Token: token,
+	}
+
+	c.JSON(http.StatusOK, loginRes)
 }
