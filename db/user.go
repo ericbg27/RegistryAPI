@@ -88,3 +88,32 @@ func (dbManager *DBManager) GetUsers(searchParams GetUsersParams) ([]User, error
 
 	return users, nil
 }
+
+type UpdateUserParams struct {
+	ID         uint
+	FullName   string
+	Phone      string
+	Password   string
+	LoginToken string
+}
+
+func (dbManager *DBManager) UpdateUser(updateParams UpdateUserParams) error {
+	result := dbManager.db.Model(&User{}).Where("id = ?", updateParams.ID).Select("full_name", "phone", "password", "login_token").Updates(User{
+		FullName:   updateParams.FullName,
+		Phone:      updateParams.Phone,
+		Password:   updateParams.Password,
+		LoginToken: updateParams.LoginToken,
+	})
+
+	if err := result.Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return &NotFoundError{
+				object: "user",
+			}
+		}
+
+		return err
+	}
+
+	return nil
+}

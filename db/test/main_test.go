@@ -46,11 +46,13 @@ func (dbms *DBManagerSuite) SetupSuite() {
 	assert.IsType(dbms.T(), &db.DBManager{}, dbms.manager)
 
 	dbms.user = &db.User{
-		FullName: "Test User",
-		Phone:    "99999999",
-		UserName: "test",
-		Password: "secret",
+		FullName:   "Test User",
+		Phone:      "99999999",
+		UserName:   "test",
+		Password:   "secret",
+		LoginToken: "token",
 	}
+	dbms.user.ID = 0
 
 	for i := 0; i < numUsers; i++ {
 		userFullName := "Test User " + strconv.Itoa(i)

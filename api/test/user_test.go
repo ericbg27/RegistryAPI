@@ -12,7 +12,7 @@ import (
 
 	"github.com/ericbg27/RegistryAPI/db"
 	mockdb "github.com/ericbg27/RegistryAPI/db/mock"
-	"github.com/ericbg27/RegistryAPI/token"
+	mocktoken "github.com/ericbg27/RegistryAPI/token/mock"
 	"github.com/gin-gonic/gin"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
@@ -155,7 +155,9 @@ func TestCreateUser(t *testing.T) {
 			dbConnector := mockdb.NewMockDBConnector(ctrl)
 			tc.buildStubs(dbConnector)
 
-			server := NewTestServer(t, dbConnector)
+			maker := mocktoken.NewMockMaker(ctrl)
+
+			server := NewTestServer(t, dbConnector, maker)
 			recorder := httptest.NewRecorder()
 
 			data, err := json.Marshal(tc.body)
@@ -255,7 +257,9 @@ func TestGetUser(t *testing.T) {
 			dbConnector := mockdb.NewMockDBConnector(ctrl)
 			tc.buildStubs(dbConnector)
 
-			server := NewTestServer(t, dbConnector)
+			maker := mocktoken.NewMockMaker(ctrl)
+
+			server := NewTestServer(t, dbConnector, maker)
 			recorder := httptest.NewRecorder()
 
 			url := "/v1/user/"
@@ -379,7 +383,9 @@ func TestGetUsers(t *testing.T) {
 			dbConnector := mockdb.NewMockDBConnector(ctrl)
 			tc.buildStubs(dbConnector)
 
-			server := NewTestServer(t, dbConnector)
+			maker := mocktoken.NewMockMaker(ctrl)
+
+			server := NewTestServer(t, dbConnector, maker)
 			recorder := httptest.NewRecorder()
 
 			url := "/v1/users/"
@@ -404,17 +410,18 @@ func TestGetUsers(t *testing.T) {
 
 func TestLoginUser(t *testing.T) {
 	user := db.User{
-		FullName: "Test User",
-		Phone:    "99989992",
-		UserName: "testuser123",
-		Password: "secret",
+		FullName:   "Test User",
+		Phone:      "99989992",
+		UserName:   "testuser123",
+		Password:   "secret",
+		LoginToken: "token",
 	}
 
 	testCases := []struct {
 		name          string
 		body          gin.H
-		buildStubs    func(dbConnector *mockdb.MockDBConnector)
-		checkResponse func(recorder *httptest.ResponseRecorder, maker token.Maker)
+		buildStubs    func(dbConnector *mockdb.MockDBConnector, maker *mocktoken.MockMaker)
+		checkResponse func(recorder *httptest.ResponseRecorder)
 	}{
 		{
 			name: "OK",
@@ -422,14 +429,34 @@ func TestLoginUser(t *testing.T) {
 				"user_name": user.UserName,
 				"password":  user.Password,
 			},
-			buildStubs: func(dbConnector *mockdb.MockDBConnector) {
+			buildStubs: func(dbConnector *mockdb.MockDBConnector, maker *mocktoken.MockMaker) {
+				maker.
+					EXPECT().
+					CreateToken(gomock.Eq(user.UserName), gomock.Any()).
+					Times(1).
+					Return(user.LoginToken, nil)
+
 				dbConnector.
 					EXPECT().
 					GetUser(gomock.Eq(user.UserName)).
 					Times(1).
 					Return(&user, nil)
+
+				updateArgs := db.UpdateUserParams{
+					ID:         0,
+					FullName:   user.FullName,
+					Phone:      user.Phone,
+					Password:   user.Password,
+					LoginToken: user.LoginToken,
+				}
+
+				dbConnector.
+					EXPECT().
+					UpdateUser(updateArgs).
+					Times(1).
+					Return(nil)
 			},
-			checkResponse: func(recorder *httptest.ResponseRecorder, maker token.Maker) {
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusOK, recorder.Code)
 
 				data, err := ioutil.ReadAll(recorder.Body)
@@ -444,11 +471,7 @@ func TestLoginUser(t *testing.T) {
 
 				token, ok := tokenValue.(string)
 				require.Equal(t, true, ok)
-
-				payload, err := maker.VerifyToken(token)
-				require.NoError(t, err)
-
-				require.Equal(t, "testuser123", payload.Username)
+				require.Equal(t, user.LoginToken, token)
 			},
 		},
 		{
@@ -456,13 +479,23 @@ func TestLoginUser(t *testing.T) {
 			body: gin.H{
 				"user_name": user.UserName,
 			},
-			buildStubs: func(dbConnector *mockdb.MockDBConnector) {
+			buildStubs: func(dbConnector *mockdb.MockDBConnector, maker *mocktoken.MockMaker) {
+				maker.
+					EXPECT().
+					CreateToken(gomock.Any(), gomock.Any()).
+					Times(0)
+
 				dbConnector.
 					EXPECT().
 					GetUser(gomock.Any).
 					Times(0)
+
+				dbConnector.
+					EXPECT().
+					UpdateUser(gomock.Any).
+					Times(0)
 			},
-			checkResponse: func(recorder *httptest.ResponseRecorder, maker token.Maker) {
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
 				validateErrorResponse(t, recorder, "BadRequest", "Incorrect parameters sent in request", http.StatusBadRequest)
 			},
 		},
@@ -472,14 +505,19 @@ func TestLoginUser(t *testing.T) {
 				"user_name": user.UserName,
 				"password":  "wrongpassword",
 			},
-			buildStubs: func(dbConnector *mockdb.MockDBConnector) {
+			buildStubs: func(dbConnector *mockdb.MockDBConnector, maker *mocktoken.MockMaker) {
+				maker.
+					EXPECT().
+					CreateToken(gomock.Any(), gomock.Any()).
+					Times(0)
+
 				dbConnector.
 					EXPECT().
 					GetUser(gomock.Eq(user.UserName)).
 					Times(1).
 					Return(&user, nil)
 			},
-			checkResponse: func(recorder *httptest.ResponseRecorder, maker token.Maker) {
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
 				validateErrorResponse(t, recorder, "Unauthorized", "Wrong password sent in request", http.StatusUnauthorized)
 			},
 		},
@@ -493,9 +531,10 @@ func TestLoginUser(t *testing.T) {
 			defer ctrl.Finish()
 
 			dbConnector := mockdb.NewMockDBConnector(ctrl)
-			tc.buildStubs(dbConnector)
+			maker := mocktoken.NewMockMaker(ctrl)
+			tc.buildStubs(dbConnector, maker)
 
-			server := NewTestServer(t, dbConnector)
+			server := NewTestServer(t, dbConnector, maker)
 			recorder := httptest.NewRecorder()
 
 			data, err := json.Marshal(tc.body)
@@ -506,7 +545,7 @@ func TestLoginUser(t *testing.T) {
 			require.NoError(t, err)
 
 			server.Router.ServeHTTP(recorder, request)
-			tc.checkResponse(recorder, server.Maker)
+			tc.checkResponse(recorder)
 		})
 	}
 }

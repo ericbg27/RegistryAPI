@@ -78,3 +78,17 @@ func (mr *MockDBConnectorMockRecorder) GetUsers(searchParams interface{}) *gomoc
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsers", reflect.TypeOf((*MockDBConnector)(nil).GetUsers), searchParams)
 }
+
+// UpdateUser mocks base method.
+func (m *MockDBConnector) UpdateUser(updateParams db.UpdateUserParams) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateUser", updateParams)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateUser indicates an expected call of UpdateUser.
+func (mr *MockDBConnectorMockRecorder) UpdateUser(updateParams interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateUser", reflect.TypeOf((*MockDBConnector)(nil).UpdateUser), updateParams)
+}

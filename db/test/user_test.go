@@ -87,3 +87,29 @@ func (dbms *DBManagerSuite) TestGetUsers() {
 		assert.Equal(dbms.T(), dbms.users[i].Password, users[i].Password)
 	}
 }
+
+func (dbms *DBManagerSuite) TestUpdateUser() {
+	dbms.mock.ExpectBegin()
+	dbms.mock.ExpectExec(
+		regexp.QuoteMeta(`UPDATE "users" SET "updated_at"=$1,"full_name"=$2,"phone"=$3,"password"=$4,"login_token"=$5 WHERE id = $6 AND "users"."deleted_at" IS NULL`),
+	).WithArgs(
+		sqlmock.AnyArg(),
+		dbms.user.FullName,
+		dbms.user.Phone,
+		dbms.user.Password,
+		dbms.user.LoginToken,
+		dbms.user.ID,
+	).WillReturnResult(sqlmock.NewResult(1, 1))
+	dbms.mock.ExpectCommit()
+
+	updateParams := db.UpdateUserParams{
+		ID:         dbms.user.ID,
+		FullName:   dbms.user.FullName,
+		Phone:      dbms.user.Phone,
+		Password:   dbms.user.Password,
+		LoginToken: dbms.user.LoginToken,
+	}
+
+	err := dbms.manager.UpdateUser(updateParams)
+	assert.NoError(dbms.T(), err)
+}

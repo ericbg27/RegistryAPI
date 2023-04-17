@@ -35,10 +35,10 @@ func (maker *PasetoMaker) CreateToken(username string, duration time.Duration) (
 	return maker.paseto.Encrypt(maker.symmetricKey, payload, nil)
 }
 
-func (maker *PasetoMaker) VerifyToken(token string) (*Payload, error) {
+func (maker *PasetoMaker) VerifyToken(tokenToVerify string) (*Payload, error) {
 	payload := &Payload{}
 
-	err := maker.paseto.Decrypt(token, maker.symmetricKey, payload, nil)
+	err := maker.paseto.Decrypt(tokenToVerify, maker.symmetricKey, payload, nil)
 	if err != nil {
 		return nil, ErrInvalidToken
 	}

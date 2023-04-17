@@ -10,18 +10,19 @@ import (
 
 	"github.com/ericbg27/RegistryAPI/api"
 	"github.com/ericbg27/RegistryAPI/db"
+	"github.com/ericbg27/RegistryAPI/token"
 	"github.com/ericbg27/RegistryAPI/util"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
 
-func NewTestServer(t *testing.T, dbConnector db.DBConnector) *api.Server {
+func NewTestServer(t *testing.T, dbConnector db.DBConnector, maker token.Maker) *api.Server {
 	config := util.Config{
 		AccessTokenDuration: 15 * time.Minute,
 		TokenSymmetricKey:   util.RandomString(32),
 	}
 
-	server, err := api.NewServer(dbConnector, config)
+	server, err := api.NewServer(dbConnector, config, maker)
 	require.NoError(t, err)
 
 	return server
