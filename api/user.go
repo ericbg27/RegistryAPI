@@ -227,6 +227,22 @@ func (s *Server) loginUser(c *gin.Context) {
 		return
 	}
 
+	updateParams := db.UpdateUserParams{
+		ID:         user.ID,
+		FullName:   user.FullName,
+		Phone:      user.Phone,
+		Password:   user.Password,
+		LoginToken: token,
+	}
+
+	if err = s.DbConnector.UpdateUser(updateParams); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"name":    "InternalServerError",
+			"message": "Unexpected server error. Try again later",
+		})
+		return
+	}
+
 	loginRes := loginUserResponse{
 		Token: token,
 	}

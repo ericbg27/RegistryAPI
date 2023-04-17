@@ -5,6 +5,7 @@ import (
 
 	"github.com/ericbg27/RegistryAPI/api"
 	"github.com/ericbg27/RegistryAPI/db"
+	"github.com/ericbg27/RegistryAPI/token"
 	"github.com/ericbg27/RegistryAPI/util"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -23,7 +24,12 @@ func main() {
 
 	dbManager := db.NewDBManager(dbConn)
 
-	server, err := api.NewServer(dbManager, config)
+	maker, err := token.NewPasetoMaker(config.TokenSymmetricKey)
+	if err != nil {
+		log.Fatalf("Cannot create token maker: %v\n", err)
+	}
+
+	server, err := api.NewServer(dbManager, config, maker)
 	if err != nil {
 		log.Fatalf("Cannot create server: %v\n", err)
 	}

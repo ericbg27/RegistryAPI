@@ -16,12 +16,7 @@ type Server struct {
 	Maker       token.Maker
 }
 
-func NewServer(dbConnector db.DBConnector, config util.Config) (server *Server, err error) {
-	maker, err := token.NewPasetoMaker(config.TokenSymmetricKey)
-	if err != nil {
-		return nil, err
-	}
-
+func NewServer(dbConnector db.DBConnector, config util.Config, maker token.Maker) (server *Server, err error) {
 	server = &Server{
 		DbConnector: dbConnector,
 		Config:      config,
