@@ -9,14 +9,19 @@ import (
 	"net/http/httptest"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/ericbg27/RegistryAPI/db"
 	mockdb "github.com/ericbg27/RegistryAPI/db/mock"
+	"github.com/ericbg27/RegistryAPI/token"
 	mocktoken "github.com/ericbg27/RegistryAPI/token/mock"
 	"github.com/gin-gonic/gin"
 	"github.com/golang/mock/gomock"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
+
+const bearerStr = "Bearer "
 
 func TestCreateUser(t *testing.T) {
 	user := db.User{
@@ -175,17 +180,34 @@ func TestCreateUser(t *testing.T) {
 
 func TestGetUser(t *testing.T) {
 	user := db.User{
-		FullName: "Test User",
-		Phone:    "99989992",
-		UserName: "testuser123",
-		Password: "secret",
+		FullName:   "Test User",
+		Phone:      "99989992",
+		UserName:   "testuser123",
+		Password:   "secret",
+		LoginToken: "token",
 	}
 	user.ID = 0
+
+	uuidToken, err := uuid.NewRandom()
+	require.NoError(t, err)
+
+	now := time.Now()
+
+	issuedAt := now
+	expiredAt := now.Add(time.Hour)
+
+	tokenPayload := &token.Payload{
+		ID:        uuidToken,
+		Username:  user.UserName,
+		IssuedAt:  issuedAt,
+		ExpiredAt: expiredAt,
+	}
 
 	testCases := []struct {
 		name          string
 		body          gin.H
-		buildStubs    func(dbConnector *mockdb.MockDBConnector)
+		token         string
+		buildStubs    func(dbConnector *mockdb.MockDBConnector, maker *mocktoken.MockMaker)
 		checkResponse func(recorder *httptest.ResponseRecorder)
 	}{
 		{
@@ -193,11 +215,18 @@ func TestGetUser(t *testing.T) {
 			body: gin.H{
 				"user_name": user.UserName,
 			},
-			buildStubs: func(dbConnector *mockdb.MockDBConnector) {
+			token: user.LoginToken,
+			buildStubs: func(dbConnector *mockdb.MockDBConnector, maker *mocktoken.MockMaker) {
+				maker.
+					EXPECT().
+					VerifyToken(user.LoginToken).
+					Times(1).
+					Return(tokenPayload, nil)
+
 				dbConnector.
 					EXPECT().
 					GetUser(gomock.Eq(user.UserName)).
-					Times(1).
+					Times(2).
 					Return(&user, nil)
 			},
 			checkResponse: func(recorder *httptest.ResponseRecorder) {
@@ -233,16 +262,69 @@ func TestGetUser(t *testing.T) {
 			},
 		},
 		{
-			name: "Bad Request",
-			body: gin.H{},
-			buildStubs: func(dbConnector *mockdb.MockDBConnector) {
+			name:  "Bad Request",
+			body:  gin.H{},
+			token: user.LoginToken,
+			buildStubs: func(dbConnector *mockdb.MockDBConnector, maker *mocktoken.MockMaker) {
+				maker.
+					EXPECT().
+					VerifyToken(user.LoginToken).
+					Times(1).
+					Return(tokenPayload, nil)
+
+				dbConnector.
+					EXPECT().
+					GetUser(gomock.Any()).
+					Times(1).
+					Return(&user, nil)
+			},
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
+				validateErrorResponse(t, recorder, "BadRequest", "Incorrect parameters sent in request", http.StatusBadRequest)
+			},
+		},
+		{
+			name: "Wrong Token",
+			body: gin.H{
+				"user_name": user.UserName,
+			},
+			token: "wrongToken",
+			buildStubs: func(dbConnector *mockdb.MockDBConnector, maker *mocktoken.MockMaker) {
+				maker.
+					EXPECT().
+					VerifyToken("wrongToken").
+					Times(1).
+					Return(tokenPayload, nil)
+
+				dbConnector.
+					EXPECT().
+					GetUser(gomock.Any()).
+					Times(1).
+					Return(&user, nil)
+			},
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
+				validateErrorResponse(t, recorder, "Unauthorized", "User is not authorized to access this resource", http.StatusUnauthorized)
+			},
+		},
+		{
+			name: "Invalid Token",
+			body: gin.H{
+				"user_name": user.UserName,
+			},
+			token: "invalidToken",
+			buildStubs: func(dbConnector *mockdb.MockDBConnector, maker *mocktoken.MockMaker) {
+				maker.
+					EXPECT().
+					VerifyToken("invalidToken").
+					Times(1).
+					Return(nil, fmt.Errorf("Invalid token"))
+
 				dbConnector.
 					EXPECT().
 					GetUser(gomock.Any()).
 					Times(0)
 			},
 			checkResponse: func(recorder *httptest.ResponseRecorder) {
-				validateErrorResponse(t, recorder, "BadRequest", "Incorrect parameters sent in request", http.StatusBadRequest)
+				validateErrorResponse(t, recorder, "Unauthorized", "User is not authorized to access this resource", http.StatusUnauthorized)
 			},
 		},
 	}
@@ -255,9 +337,8 @@ func TestGetUser(t *testing.T) {
 			defer ctrl.Finish()
 
 			dbConnector := mockdb.NewMockDBConnector(ctrl)
-			tc.buildStubs(dbConnector)
-
 			maker := mocktoken.NewMockMaker(ctrl)
+			tc.buildStubs(dbConnector, maker)
 
 			server := NewTestServer(t, dbConnector, maker)
 			recorder := httptest.NewRecorder()
@@ -265,6 +346,8 @@ func TestGetUser(t *testing.T) {
 			url := "/v1/user/"
 			request, err := http.NewRequest(http.MethodGet, url, nil)
 			require.NoError(t, err)
+
+			request.Header.Set("Authorization", bearerStr+tc.token)
 
 			q := request.URL.Query()
 			for k, v := range tc.body {
