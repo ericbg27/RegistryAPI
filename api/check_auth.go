@@ -50,7 +50,7 @@ func (s *Server) checkAuth(c *gin.Context) {
 		return
 	}
 
-	c.Set("token", payload)
+	c.Set("tokenPayload", token)
 	c.Set("currentUser", user)
 	c.Next()
 }

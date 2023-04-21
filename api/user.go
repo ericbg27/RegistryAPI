@@ -249,3 +249,56 @@ func (s *Server) loginUser(c *gin.Context) {
 
 	c.JSON(http.StatusOK, loginRes)
 }
+
+type updateUserRequest struct {
+	FullName string `json:"full_name"`
+	Phone    string `json:"phone"`
+}
+
+func (s *Server) updateUser(c *gin.Context) {
+	var updateUserParams updateUserRequest
+
+	if err := c.BindJSON(&updateUserParams); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"name":    "BadRequest",
+			"message": "Incorrect parameters sent in request",
+		})
+		return
+	}
+
+	user, ok := c.Keys["currentUser"]
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"name":    "InternalServerError",
+			"message": "Unexpected server error. Try again later",
+		})
+		return
+	}
+
+	currentUser, ok := user.(*db.User)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"name":    "InternalServerError",
+			"message": "Unexpected server error. Try again later",
+		})
+		return
+	}
+
+	updateParams := db.UpdateUserParams{
+		ID:         currentUser.ID,
+		FullName:   updateUserParams.FullName,
+		Phone:      updateUserParams.Phone,
+		Password:   currentUser.Password,
+		LoginToken: currentUser.LoginToken,
+	}
+
+	if err := s.DbConnector.UpdateUser(updateParams); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"name":    "InternalServerError",
+			"message": "Unexpected server error. Try again later",
+		})
+		return
+	}
+
+	c.JSON(http.StatusNoContent, gin.H{})
+}

@@ -297,7 +297,7 @@ func TestGetUser(t *testing.T) {
 
 				dbConnector.
 					EXPECT().
-					GetUser(gomock.Any()).
+					GetUser(gomock.Eq(user.UserName)).
 					Times(1).
 					Return(&user, nil)
 			},
@@ -626,6 +626,164 @@ func TestLoginUser(t *testing.T) {
 			url := "/v1/user/login"
 			request, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(data))
 			require.NoError(t, err)
+
+			server.Router.ServeHTTP(recorder, request)
+			tc.checkResponse(recorder)
+		})
+	}
+}
+
+func TestUpdateUser(t *testing.T) {
+	user := db.User{
+		FullName:   "Test user",
+		Phone:      "99989992",
+		UserName:   "testuser123",
+		Password:   "secret",
+		LoginToken: "token",
+	}
+	user.ID = 0
+
+	uuidToken, err := uuid.NewRandom()
+	require.NoError(t, err)
+
+	now := time.Now()
+
+	issuedAt := now
+	expiredAt := now.Add(time.Hour)
+
+	tokenPayload := &token.Payload{
+		ID:        uuidToken,
+		Username:  user.UserName,
+		IssuedAt:  issuedAt,
+		ExpiredAt: expiredAt,
+	}
+
+	testCases := []struct {
+		name          string
+		body          gin.H
+		token         string
+		buildStubs    func(dbConnector *mockdb.MockDBConnector, maker *mocktoken.MockMaker)
+		checkResponse func(recorder *httptest.ResponseRecorder)
+	}{
+		{
+			name: "OK",
+			body: gin.H{
+				"full_name": "Test User",
+				"phone":     "99989993",
+			},
+			token: user.LoginToken,
+			buildStubs: func(dbConnector *mockdb.MockDBConnector, maker *mocktoken.MockMaker) {
+				maker.
+					EXPECT().
+					VerifyToken(user.LoginToken).
+					Times(1).
+					Return(tokenPayload, nil)
+
+				dbConnector.
+					EXPECT().
+					GetUser(gomock.Eq(user.UserName)).
+					Times(1).
+					Return(&user, nil)
+
+				arg := db.UpdateUserParams{
+					ID:         user.ID,
+					FullName:   "Test User",
+					Phone:      "99989993",
+					Password:   user.Password,
+					LoginToken: user.LoginToken,
+				}
+
+				dbConnector.
+					EXPECT().
+					UpdateUser(arg).
+					Times(1).
+					Return(nil)
+			},
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusNoContent, recorder.Code)
+			},
+		},
+		{
+			name: "Wrong Token",
+			body: gin.H{
+				"full_name": "Test User",
+				"phone":     "99989993",
+			},
+			token: "wrongToken",
+			buildStubs: func(dbConnector *mockdb.MockDBConnector, maker *mocktoken.MockMaker) {
+				maker.
+					EXPECT().
+					VerifyToken("wrongToken").
+					Times(1).
+					Return(tokenPayload, nil)
+
+				dbConnector.
+					EXPECT().
+					GetUser(gomock.Eq(user.UserName)).
+					Times(1).
+					Return(&user, nil)
+
+				dbConnector.
+					EXPECT().
+					UpdateUser(gomock.Any()).
+					Times(0)
+			},
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
+				validateErrorResponse(t, recorder, "Unauthorized", "User is not authorized to access this resource", http.StatusUnauthorized)
+			},
+		},
+		{
+			name: "Invalid Token",
+			body: gin.H{
+				"full_name": "Test User",
+				"phone":     "99989993",
+			},
+			token: "invalidToken",
+			buildStubs: func(dbConnector *mockdb.MockDBConnector, maker *mocktoken.MockMaker) {
+				maker.
+					EXPECT().
+					VerifyToken("invalidToken").
+					Times(1).
+					Return(nil, fmt.Errorf("Invalid token"))
+
+				dbConnector.
+					EXPECT().
+					GetUser(gomock.Any()).
+					Times(0)
+
+				dbConnector.
+					EXPECT().
+					UpdateUser(gomock.Any()).
+					Times(0)
+			},
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
+				validateErrorResponse(t, recorder, "Unauthorized", "User is not authorized to access this resource", http.StatusUnauthorized)
+			},
+		},
+	}
+
+	for i := range testCases {
+		tc := testCases[i]
+
+		t.Run(tc.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			dbConnector := mockdb.NewMockDBConnector(ctrl)
+			maker := mocktoken.NewMockMaker(ctrl)
+			tc.buildStubs(dbConnector, maker)
+
+			server := NewTestServer(t, dbConnector, maker)
+			recorder := httptest.NewRecorder()
+
+			data, err := json.Marshal(tc.body)
+			require.NoError(t, err)
+
+			url := "/v1/user/"
+			request, err := http.NewRequest(http.MethodPut, url, bytes.NewReader(data))
+			require.NoError(t, err)
+
+			request.Header.Set("Authorization", bearerStr+tc.token)
 
 			server.Router.ServeHTTP(recorder, request)
 			tc.checkResponse(recorder)
