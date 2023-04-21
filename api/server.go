@@ -37,7 +37,8 @@ func (s *Server) setupRouter() {
 
 		v1User := v1.Group("/user")
 		{
-			v1User.GET("/", s.getUser)
+			v1User.GET("/", s.checkAuth, s.getUser)
+			v1User.PUT("/", s.checkAuth, s.updateUser)
 			v1User.POST("/", s.createUser)
 			v1User.POST("/login", s.loginUser)
 		}
