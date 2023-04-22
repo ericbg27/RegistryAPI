@@ -148,6 +148,42 @@ func TestCreateUser(t *testing.T) {
 				validateErrorResponse(t, recorder, "InternalServerError", "Unexpected server error. Try again later", http.StatusInternalServerError)
 			},
 		},
+		{
+			name: "Bad Phone Number",
+			body: gin.H{
+				"full_name": user.FullName,
+				"phone":     "9999999",
+				"user_name": user.UserName,
+				"password":  user.Password,
+			},
+			buildStubs: func(dbConnector *mockdb.MockDBConnector) {
+				dbConnector.
+					EXPECT().
+					CreateUser(gomock.Any()).
+					Times(0)
+			},
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
+				validateErrorResponse(t, recorder, "BadRequest", "Incorrect parameters sent in request", http.StatusBadRequest)
+			},
+		},
+		{
+			name: "Bad Password",
+			body: gin.H{
+				"full_name": user.FullName,
+				"phone":     user.Phone,
+				"user_name": user.UserName,
+				"password":  "test#",
+			},
+			buildStubs: func(dbConnector *mockdb.MockDBConnector) {
+				dbConnector.
+					EXPECT().
+					CreateUser(gomock.Any()).
+					Times(0)
+			},
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
+				validateErrorResponse(t, recorder, "BadRequest", "Incorrect parameters sent in request", http.StatusBadRequest)
+			},
+		},
 	}
 
 	for i := range testCases {
@@ -758,6 +794,37 @@ func TestUpdateUser(t *testing.T) {
 			},
 			checkResponse: func(recorder *httptest.ResponseRecorder) {
 				validateErrorResponse(t, recorder, "Unauthorized", "User is not authorized to access this resource", http.StatusUnauthorized)
+			},
+		},
+		{
+			name: "Bad Phone Number",
+			body: gin.H{
+				"full_name": user.FullName,
+				"phone":     "9999999",
+				"user_name": user.UserName,
+				"password":  user.Password,
+			},
+			token: user.LoginToken,
+			buildStubs: func(dbConnector *mockdb.MockDBConnector, maker *mocktoken.MockMaker) {
+				maker.
+					EXPECT().
+					VerifyToken(user.LoginToken).
+					Times(1).
+					Return(tokenPayload, nil)
+
+				dbConnector.
+					EXPECT().
+					GetUser(gomock.Eq(user.UserName)).
+					Times(1).
+					Return(&user, nil)
+
+				dbConnector.
+					EXPECT().
+					UpdateUser(gomock.Any()).
+					Times(0)
+			},
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
+				validateErrorResponse(t, recorder, "BadRequest", "Incorrect parameters sent in request", http.StatusBadRequest)
 			},
 		},
 	}

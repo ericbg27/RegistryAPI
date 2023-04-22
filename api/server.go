@@ -7,6 +7,8 @@ import (
 	"github.com/ericbg27/RegistryAPI/token"
 	"github.com/ericbg27/RegistryAPI/util"
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
+	"github.com/go-playground/validator/v10"
 )
 
 type Server struct {
@@ -30,6 +32,11 @@ func NewServer(dbConnector db.DBConnector, config util.Config, maker token.Maker
 
 func (s *Server) setupRouter() {
 	s.Router = gin.Default()
+
+	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
+		v.RegisterValidation("isPhone", isPhone)
+		v.RegisterValidation("validPassword", validPassword)
+	}
 
 	v1 := s.Router.Group("/v1")
 	{
