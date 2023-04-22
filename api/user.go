@@ -11,9 +11,9 @@ import (
 
 type createUserRequest struct {
 	FullName string `json:"full_name" binding:"required"`
-	Phone    string `json:"phone" binding:"required"`
+	Phone    string `json:"phone" binding:"required,isPhone"`
 	UserName string `json:"user_name" binding:"required,alphanum,min=6"`
-	Password string `json:"password" binding:"required,min=6"`
+	Password string `json:"password" binding:"required,min=6,validPassword"`
 }
 
 func (s *Server) createUser(c *gin.Context) {
@@ -252,7 +252,7 @@ func (s *Server) loginUser(c *gin.Context) {
 
 type updateUserRequest struct {
 	FullName string `json:"full_name"`
-	Phone    string `json:"phone"`
+	Phone    string `json:"phone" binding:"isPhone"`
 }
 
 func (s *Server) updateUser(c *gin.Context) {
