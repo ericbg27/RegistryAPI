@@ -49,6 +49,20 @@ func (mr *MockDBConnectorMockRecorder) CreateUser(userParams interface{}) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateUser", reflect.TypeOf((*MockDBConnector)(nil).CreateUser), userParams)
 }
 
+// DeleteUser mocks base method.
+func (m *MockDBConnector) DeleteUser(userName string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteUser", userName)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteUser indicates an expected call of DeleteUser.
+func (mr *MockDBConnectorMockRecorder) DeleteUser(userName interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteUser", reflect.TypeOf((*MockDBConnector)(nil).DeleteUser), userName)
+}
+
 // GetUser mocks base method.
 func (m *MockDBConnector) GetUser(userName string) (*db.User, error) {
 	m.ctrl.T.Helper()

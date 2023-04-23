@@ -7,6 +7,7 @@ type DBConnector interface {
 	GetUser(userName string) (*User, error)
 	GetUsers(searchParams GetUsersParams) ([]User, error)
 	UpdateUser(updateParams UpdateUserParams) error
+	DeleteUser(userName string) error
 }
 
 type DBManager struct {

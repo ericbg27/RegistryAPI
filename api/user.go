@@ -302,3 +302,49 @@ func (s *Server) updateUser(c *gin.Context) {
 
 	c.JSON(http.StatusNoContent, gin.H{})
 }
+
+type deleteUserRequest struct {
+	UserName string `json:"user_name" binding:"required"`
+}
+
+func (s *Server) deleteUser(c *gin.Context) {
+	var deleteUserReq deleteUserRequest
+
+	if err := c.ShouldBindJSON(&deleteUserReq); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"name":    "BadRequest",
+			"message": "Incorrect parameters sent in request",
+		})
+		return
+	}
+
+	userReq, _ := c.Keys["currentUser"]
+	loggedUser, _ := userReq.(*db.User)
+
+	if !loggedUser.Admin && loggedUser.UserName != deleteUserReq.UserName {
+		c.JSON(http.StatusForbidden, gin.H{
+			"name":    "Forbidden",
+			"message": "User is not allowed to access this resource",
+		})
+		return
+	}
+
+	if err := s.DbConnector.DeleteUser(deleteUserReq.UserName); err != nil {
+		notFoundErr, ok := err.(*db.NotFoundError)
+		if ok {
+			c.JSON(http.StatusNotFound, gin.H{
+				"name":    "NotFound",
+				"message": notFoundErr.Error(),
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"name":    "InternalServerError",
+			"message": "Unexpected server error. Try again later",
+		})
+		return
+	}
+
+	c.JSON(http.StatusNoContent, gin.H{})
+}
