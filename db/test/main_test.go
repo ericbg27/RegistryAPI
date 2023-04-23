@@ -65,6 +65,7 @@ func (dbms *DBManagerSuite) SetupSuite() {
 			Phone:    userPhone,
 			UserName: userUserName,
 			Password: userPassword,
+			Admin:    false,
 		})
 	}
 }

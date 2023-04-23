@@ -402,6 +402,49 @@ func TestGetUser(t *testing.T) {
 }
 
 func TestGetUsers(t *testing.T) {
+	adminUser := db.User{
+		FullName:   "Admin",
+		Phone:      "91234567",
+		UserName:   "adminuser",
+		Password:   "secretadmin",
+		LoginToken: "tokenadmin",
+		Admin:      true,
+	}
+
+	uuidAdminToken, err := uuid.NewRandom()
+	require.NoError(t, err)
+
+	now := time.Now()
+
+	issuedAt := now
+	expiredAt := now.Add(time.Hour)
+
+	adminTokenPayload := &token.Payload{
+		ID:        uuidAdminToken,
+		Username:  adminUser.UserName,
+		IssuedAt:  issuedAt,
+		ExpiredAt: expiredAt,
+	}
+
+	nonAdminUser := db.User{
+		FullName:   "Non Admin",
+		Phone:      "91234568",
+		UserName:   "nonadminuser",
+		Password:   "secretnonadmin",
+		LoginToken: "tokennonadmin",
+		Admin:      false,
+	}
+
+	uuidNonAdminToken, err := uuid.NewRandom()
+	require.NoError(t, err)
+
+	nonAdminTokenPayload := &token.Payload{
+		ID:        uuidNonAdminToken,
+		Username:  nonAdminUser.UserName,
+		IssuedAt:  issuedAt,
+		ExpiredAt: expiredAt,
+	}
+
 	users := []db.User{}
 
 	for i := 0; i < 5; i++ {
@@ -418,7 +461,8 @@ func TestGetUsers(t *testing.T) {
 	testCases := []struct {
 		name          string
 		body          gin.H
-		buildStubs    func(dbConnector *mockdb.MockDBConnector)
+		token         string
+		buildStubs    func(dbConnector *mockdb.MockDBConnector, maker *mocktoken.MockMaker)
 		checkResponse func(recorder *httptest.ResponseRecorder)
 	}{
 		{
@@ -427,7 +471,20 @@ func TestGetUsers(t *testing.T) {
 				"page":   0,
 				"offset": 2,
 			},
-			buildStubs: func(dbConnector *mockdb.MockDBConnector) {
+			token: adminUser.LoginToken,
+			buildStubs: func(dbConnector *mockdb.MockDBConnector, maker *mocktoken.MockMaker) {
+				maker.
+					EXPECT().
+					VerifyToken(gomock.Eq(adminUser.LoginToken)).
+					Times(1).
+					Return(adminTokenPayload, nil)
+
+				dbConnector.
+					EXPECT().
+					GetUser(gomock.Eq(adminUser.UserName)).
+					Times(1).
+					Return(&adminUser, nil)
+
 				args := db.GetUsersParams{
 					PageIndex: 0,
 					Offset:    2,
@@ -490,6 +547,35 @@ func TestGetUsers(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "Non Admin User Token",
+			body: gin.H{
+				"page":   0,
+				"offset": 2,
+			},
+			token: nonAdminUser.LoginToken,
+			buildStubs: func(dbConnector *mockdb.MockDBConnector, maker *mocktoken.MockMaker) {
+				maker.
+					EXPECT().
+					VerifyToken(gomock.Eq(nonAdminUser.LoginToken)).
+					Times(1).
+					Return(nonAdminTokenPayload, nil)
+
+				dbConnector.
+					EXPECT().
+					GetUser(gomock.Eq(nonAdminUser.UserName)).
+					Times(1).
+					Return(&nonAdminUser, nil)
+
+				dbConnector.
+					EXPECT().
+					GetUsers(gomock.Any).
+					Times(0)
+			},
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
+				validateErrorResponse(t, recorder, "Forbidden", "User is not allowed to access this resource", http.StatusForbidden)
+			},
+		},
 	}
 
 	for i := range testCases {
@@ -500,9 +586,8 @@ func TestGetUsers(t *testing.T) {
 			defer ctrl.Finish()
 
 			dbConnector := mockdb.NewMockDBConnector(ctrl)
-			tc.buildStubs(dbConnector)
-
 			maker := mocktoken.NewMockMaker(ctrl)
+			tc.buildStubs(dbConnector, maker)
 
 			server := NewTestServer(t, dbConnector, maker)
 			recorder := httptest.NewRecorder()
@@ -520,6 +605,8 @@ func TestGetUsers(t *testing.T) {
 			}
 
 			request.URL.RawQuery = q.Encode()
+
+			request.Header.Set("Authorization", bearerStr+tc.token)
 
 			server.Router.ServeHTTP(recorder, request)
 			tc.checkResponse(recorder)

@@ -15,6 +15,7 @@ type User struct {
 	UserName   string `gorm:"unique"`
 	Password   string
 	LoginToken string
+	Admin      bool
 }
 
 type CreateUserParams struct {
@@ -30,6 +31,7 @@ func (dbManager *DBManager) CreateUser(userParams CreateUserParams) (*User, erro
 		Phone:    userParams.Phone,
 		UserName: userParams.UserName,
 		Password: userParams.Password,
+		Admin:    false,
 	}
 
 	result := dbManager.db.Omit("LoginToken").Create(user)
@@ -80,7 +82,7 @@ func (dbManager *DBManager) GetUsers(searchParams GetUsersParams) ([]User, error
 
 	searchOffset := searchParams.PageIndex * searchParams.Offset
 
-	result := dbManager.db.Omit("ID", "LoginToken").Limit(searchParams.Offset).Offset(searchOffset).Find(&users)
+	result := dbManager.db.Omit("ID", "LoginToken").Limit(searchParams.Offset).Offset(searchOffset).Where("admin <> ?", true).Or("admin IS NULL").Find(&users)
 
 	if err := result.Error; err != nil {
 		return nil, err
