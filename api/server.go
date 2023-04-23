@@ -52,7 +52,7 @@ func (s *Server) setupRouter() {
 
 		v1Users := v1.Group("/users")
 		{
-			v1Users.GET("/", s.getUsers)
+			v1Users.GET("/", s.checkAuth, s.isAdmin, s.getUsers)
 		}
 	}
 }

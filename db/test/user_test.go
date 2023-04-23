@@ -15,7 +15,7 @@ func (dbms *DBManagerSuite) TestCreateUser() {
 
 	dbms.mock.ExpectBegin()
 	dbms.mock.ExpectQuery(
-		regexp.QuoteMeta(`INSERT INTO "users" ("created_at","updated_at","deleted_at","full_name","phone","user_name","password") VALUES ($1,$2,$3,$4,$5,$6,$7)`),
+		regexp.QuoteMeta(`INSERT INTO "users" ("created_at","updated_at","deleted_at","full_name","phone","user_name","password","admin") VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`),
 	).WithArgs(
 		sqlmock.AnyArg(),
 		sqlmock.AnyArg(),
@@ -24,6 +24,7 @@ func (dbms *DBManagerSuite) TestCreateUser() {
 		dbms.user.Phone,
 		dbms.user.UserName,
 		dbms.user.Password,
+		false,
 	).WillReturnRows(userMockRows)
 	dbms.mock.ExpectCommit()
 
@@ -40,6 +41,7 @@ func (dbms *DBManagerSuite) TestCreateUser() {
 	assert.Equal(dbms.T(), dbms.user.Phone, user.Phone)
 	assert.Equal(dbms.T(), dbms.user.UserName, user.UserName)
 	assert.Equal(dbms.T(), dbms.user.Password, user.Password)
+	assert.Equal(dbms.T(), dbms.user.Admin, user.Admin)
 }
 
 func (dbms *DBManagerSuite) TestGetUser() {
@@ -57,6 +59,7 @@ func (dbms *DBManagerSuite) TestGetUser() {
 	assert.Equal(dbms.T(), dbms.user.Phone, user.Phone)
 	assert.Equal(dbms.T(), dbms.user.UserName, user.UserName)
 	assert.Equal(dbms.T(), dbms.user.Password, user.Password)
+	assert.Equal(dbms.T(), dbms.user.Admin, false)
 }
 
 func (dbms *DBManagerSuite) TestGetUsers() {
@@ -69,7 +72,7 @@ func (dbms *DBManagerSuite) TestGetUsers() {
 	}
 
 	dbms.mock.ExpectQuery(
-		regexp.QuoteMeta(fmt.Sprintf(`SELECT "users"."created_at","users"."updated_at","users"."deleted_at","users"."full_name","users"."phone","users"."user_name","users"."password" FROM "users" WHERE "users"."deleted_at" IS NULL LIMIT %d OFFSET %d`, consideredNumUsers, 1*(consideredNumUsers))),
+		regexp.QuoteMeta(fmt.Sprintf(`SELECT "users"."created_at","users"."updated_at","users"."deleted_at","users"."full_name","users"."phone","users"."user_name","users"."password","users"."admin" FROM "users" WHERE (admin <> $1 OR admin IS NULL) AND "users"."deleted_at" IS NULL LIMIT %d OFFSET %d`, consideredNumUsers, 1*(consideredNumUsers))),
 	).WithArgs().WillReturnRows(userMockRows)
 
 	searchParams := db.GetUsersParams{
