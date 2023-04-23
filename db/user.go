@@ -119,3 +119,19 @@ func (dbManager *DBManager) UpdateUser(updateParams UpdateUserParams) error {
 
 	return nil
 }
+
+func (dbManager *DBManager) DeleteUser(userName string) error {
+	result := dbManager.db.Where("user_name = ?", userName).Delete(&User{})
+
+	if err := result.Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return &NotFoundError{
+				object: "user",
+			}
+		}
+
+		return err
+	}
+
+	return nil
+}

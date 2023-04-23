@@ -116,3 +116,17 @@ func (dbms *DBManagerSuite) TestUpdateUser() {
 	err := dbms.manager.UpdateUser(updateParams)
 	assert.NoError(dbms.T(), err)
 }
+
+func (dbms *DBManagerSuite) TestDeleteUser() {
+	dbms.mock.ExpectBegin()
+	dbms.mock.ExpectExec(
+		regexp.QuoteMeta(`UPDATE "users" SET "deleted_at"=$1 WHERE user_name = $2 AND "users"."deleted_at" IS NULL`),
+	).WithArgs(
+		sqlmock.AnyArg(),
+		dbms.user.UserName,
+	).WillReturnResult(sqlmock.NewResult(1, 1))
+	dbms.mock.ExpectCommit()
+
+	err := dbms.manager.DeleteUser(dbms.user.UserName)
+	assert.NoError(dbms.T(), err)
+}

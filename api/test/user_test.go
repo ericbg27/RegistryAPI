@@ -944,3 +944,168 @@ func TestUpdateUser(t *testing.T) {
 		})
 	}
 }
+
+func TestDeleteUser(t *testing.T) {
+	adminUser := db.User{
+		FullName:   "Admin",
+		Phone:      "91234567",
+		UserName:   "adminuser",
+		Password:   "secretadmin",
+		LoginToken: "tokenadmin",
+		Admin:      true,
+	}
+
+	uuidAdminToken, err := uuid.NewRandom()
+	require.NoError(t, err)
+
+	now := time.Now()
+
+	issuedAt := now
+	expiredAt := now.Add(time.Hour)
+
+	adminTokenPayload := &token.Payload{
+		ID:        uuidAdminToken,
+		Username:  adminUser.UserName,
+		IssuedAt:  issuedAt,
+		ExpiredAt: expiredAt,
+	}
+
+	nonAdminUser := db.User{
+		FullName:   "Non Admin",
+		Phone:      "91234568",
+		UserName:   "nonadminuser",
+		Password:   "secretnonadmin",
+		LoginToken: "tokennonadmin",
+		Admin:      false,
+	}
+
+	uuidNonAdminToken, err := uuid.NewRandom()
+	require.NoError(t, err)
+
+	nonAdminTokenPayload := &token.Payload{
+		ID:        uuidNonAdminToken,
+		Username:  nonAdminUser.UserName,
+		IssuedAt:  issuedAt,
+		ExpiredAt: expiredAt,
+	}
+
+	testCases := []struct {
+		name          string
+		body          gin.H
+		token         string
+		buildStubs    func(dbConnector *mockdb.MockDBConnector, maker *mocktoken.MockMaker)
+		checkResponse func(recorder *httptest.ResponseRecorder)
+	}{
+		{
+			name: "OK",
+			body: gin.H{
+				"user_name": nonAdminUser.UserName,
+			},
+			token: adminUser.LoginToken,
+			buildStubs: func(dbConnector *mockdb.MockDBConnector, maker *mocktoken.MockMaker) {
+				maker.
+					EXPECT().
+					VerifyToken(gomock.Eq(adminUser.LoginToken)).
+					Times(1).
+					Return(adminTokenPayload, nil)
+
+				dbConnector.
+					EXPECT().
+					GetUser(gomock.Eq(adminUser.UserName)).
+					Times(1).
+					Return(&adminUser, nil)
+
+				dbConnector.
+					EXPECT().
+					DeleteUser(gomock.Eq(nonAdminUser.UserName)).
+					Times(1).
+					Return(nil)
+			},
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusNoContent, recorder.Code)
+			},
+		},
+		{
+			name:  "Bad Request",
+			body:  gin.H{},
+			token: adminUser.LoginToken,
+			buildStubs: func(dbConnector *mockdb.MockDBConnector, maker *mocktoken.MockMaker) {
+				maker.
+					EXPECT().
+					VerifyToken(gomock.Eq(adminUser.LoginToken)).
+					Times(1).
+					Return(adminTokenPayload, nil)
+
+				dbConnector.
+					EXPECT().
+					GetUser(gomock.Eq(adminUser.UserName)).
+					Times(1).
+					Return(&adminUser, nil)
+
+				dbConnector.
+					EXPECT().
+					DeleteUser(gomock.Any()).
+					Times(0)
+			},
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
+				validateErrorResponse(t, recorder, "BadRequest", "Incorrect parameters sent in request", http.StatusBadRequest)
+			},
+		},
+		{
+			name: "Non Admin User Deleting Other User",
+			body: gin.H{
+				"user_name": "otheruser123",
+			},
+			token: nonAdminUser.LoginToken,
+			buildStubs: func(dbConnector *mockdb.MockDBConnector, maker *mocktoken.MockMaker) {
+				maker.
+					EXPECT().
+					VerifyToken(gomock.Eq(nonAdminUser.LoginToken)).
+					Times(1).
+					Return(nonAdminTokenPayload, nil)
+
+				dbConnector.
+					EXPECT().
+					GetUser(gomock.Eq(nonAdminUser.UserName)).
+					Times(1).
+					Return(&nonAdminUser, nil)
+
+				dbConnector.
+					EXPECT().
+					DeleteUser(gomock.Any()).
+					Times(0)
+			},
+			checkResponse: func(recorder *httptest.ResponseRecorder) {
+				validateErrorResponse(t, recorder, "Forbidden", "User is not allowed to access this resource", http.StatusForbidden)
+			},
+		},
+	}
+
+	for i := range testCases {
+		tc := testCases[i]
+
+		t.Run(tc.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			dbConnector := mockdb.NewMockDBConnector(ctrl)
+			maker := mocktoken.NewMockMaker(ctrl)
+			tc.buildStubs(dbConnector, maker)
+
+			server := NewTestServer(t, dbConnector, maker)
+			recorder := httptest.NewRecorder()
+
+			data, err := json.Marshal(tc.body)
+			require.NoError(t, err)
+
+			url := "/v1/user/"
+			request, err := http.NewRequest(http.MethodDelete, url, bytes.NewReader(data))
+			require.NoError(t, err)
+
+			request.Header.Set("Authorization", bearerStr+tc.token)
+
+			server.Router.ServeHTTP(recorder, request)
+			tc.checkResponse(recorder)
+		})
+	}
+}
